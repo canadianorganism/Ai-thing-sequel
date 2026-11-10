@@ -1,0 +1,6 @@
+avatar_url|text|YES|
+created_at|timestamp with time zone|NO|now()
+display_name|text|YES|
+id|uuid|NO|gen_random_uuid()
+updated_at|timestamp with time zone|NO|now()
+user_id|uuid|NO|

@@ -1,0 +1,1 @@
+ALTER TABLE public.game_saves ADD COLUMN collected_grub_ids text[] NOT NULL DEFAULT ARRAY[]::text[];

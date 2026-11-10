@@ -1,0 +1,67 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run smoke test
+        id: smoke
+        run: |
+          mkdir -p "$ARTIFACTS_DIR"
+          bash scripts/smoke-test.sh 2>&1 | tee "$ARTIFACTS_DIR/smoke-test.log"
+
+      - name: DB auth wiring check (trigger + profiles RLS)
+        id: db_auth_check
+        if: ${{ env.SUPABASE_DB_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.SUPABASE_DB_URL }}
+        run: |
+          bash scripts/db-auth-check.sh 2>&1 | tee "$ARTIFACTS_DIR/db-auth-check.log"
+
+      - name: DB schema diff (auth trigger + profiles shape)
+        id: db_schema_diff
+        if: ${{ env.SUPABASE_DB_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.SUPABASE_DB_URL }}
+        run: |
+          bash scripts/db-schema-diff.sh 2>&1 | tee "$ARTIFACTS_DIR/db-schema-diff.log"
+
+      # Always upload the build output if it was produced.
+      - name: Upload build output
+        if: always() && hashFiles('artifacts/dist/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: artifacts/dist
+          if-no-files-found: ignore
+
+      # On failure, upload preview + smoke-test logs to help debugging.
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-logs
+          path: |
+            artifacts/preview.log
+            artifacts/smoke-test.log
+            artifacts/db-auth-check.log
+            artifacts/db-schema-diff.log
+          if-no-files-found: warn
