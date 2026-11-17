@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -36,14 +35,13 @@ const Auth = () => {
 
   const handleGoogleAuth = async () => {
     setError('');
-    const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+    // Supabase's own Google OAuth: redirects to Google, then back to /adaptive-ai,
+    // where the Supabase client picks the session up from the URL.
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/adaptive-ai` },
     });
-    if (result.error) {
-      setError(result.error.message || 'Google sign-in failed.');
-    }
-    if (result.redirected) return;
-    navigate('/adaptive-ai');
+    if (err) setError(err.message || 'Google sign-in failed.');
   };
 
   return (
